@@ -275,8 +275,16 @@ class Session(BaseModel):
 
 
 class CreateSessionRequest(BaseModel):
+    """开启会话。
+
+    真实模式下问题来自知乎，需要把 title/url 一起带上 ——
+    否则后端无法保留用户实际看到的那道题。
+    """
+
     profile: UserProfile
     question_id: str
+    title: str = ""
+    url: str = ""
 
 
 class PostMessageRequest(BaseModel):

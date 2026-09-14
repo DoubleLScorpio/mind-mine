@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from config import settings
 from models.session import (
     ChallengeRespondRequest,
     ComposeResponse,
@@ -65,7 +66,36 @@ def _invalid_state(exc: InvalidStateError) -> HTTPException:
 
 @router.get("/health")
 async def health() -> dict:
-    return ok({"status": "healthy", "phase": "1-mock", "demo_mode": True})
+    """健康检查同时暴露各 provider 的实际运行模式。
+
+    用于确认「每个外部依赖都能独立 fallback」，
+    不返回任何密钥（只返回脱敏后的标识）。
+    """
+    from services.llm_service import llm
+    from services.zhihu_service import zhihu
+
+    return ok(
+        {
+            "status": "healthy",
+            "phase": "2-real-integration",
+            "providers": {
+                "llm": {
+                    "configured": settings.llm_configured,
+                    "mode": settings.llm_mode(),
+                    "model": settings.llm_model if settings.llm_configured else None,
+                    "key": settings.masked_key(),
+                    "available": llm.available,
+                },
+                "zhihu": {
+                    "mode": settings.zhihu_mode(),
+                    "cli_available": zhihu.available,
+                },
+                "profile": {"mode": settings.profile_provider},
+            },
+            # 任一 provider 不可用时仍可完整演示
+            "demo_fallback": True,
+        }
+    )
 
 
 @router.post("/questions")
@@ -92,7 +122,12 @@ async def list_questions() -> dict:
 
 @router.post("/sessions")
 async def create_session(req: CreateSessionRequest) -> dict:
-    session = store.create(profile=req.profile, question_id=req.question_id)
+    session = store.create(
+        profile=req.profile,
+        question_id=req.question_id,
+        title=req.title,
+        url=req.url,
+    )
     return ok(session.model_dump(mode="json"))
 
 
@@ -123,7 +158,9 @@ async def post_message(session_id: str, req: PostMessageRequest) -> dict:
         )
 
     try:
-        session, ai_reply, insight_ready = store.post_message(session_id, content)
+        session, ai_reply, insight_ready, _used_real = await store.post_message(
+            session_id, content
+        )
     except SessionNotFoundError:
         raise _not_found(session_id)
     except InvalidStateError as exc:
@@ -150,7 +187,7 @@ async def post_message(session_id: str, req: PostMessageRequest) -> dict:
 @router.post("/sessions/{session_id}/insight/confirm")
 async def confirm_insight(session_id: str) -> dict:
     try:
-        session = store.confirm_insight(session_id)
+        session = await store.confirm_insight(session_id)
     except SessionNotFoundError:
         raise _not_found(session_id)
     except InvalidStateError as exc:
@@ -197,7 +234,7 @@ async def respond_challenge(
         )
 
     try:
-        session = store.respond_challenge(session_id, content)
+        session = await store.respond_challenge(session_id, content)
     except SessionNotFoundError:
         raise _not_found(session_id)
     except InvalidStateError as exc:
@@ -293,7 +330,7 @@ async def set_ownership(session_id: str, req: OwnershipRequest) -> dict:
 @router.post("/sessions/{session_id}/compose")
 async def compose(session_id: str) -> dict:
     try:
-        session = store.compose(session_id)
+        session = await store.compose(session_id)
     except SessionNotFoundError:
         raise _not_found(session_id)
     except InvalidStateError as exc:

@@ -12,6 +12,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from models.profile import ChatAnswerRequest, CorrectionRequest
+from services import profile_extractor, question_matcher
 from services.profile_service import profile_service
 
 router = APIRouter()
@@ -41,15 +42,39 @@ def _not_found(onboarding_id: str) -> HTTPException:
 
 @router.get("/onboarding/traces")
 async def traces() -> dict:
-    """逐步浮现的痕迹。Phase 1 全部是演示数据，前端必须明确标注。"""
-    return ok({"items": [t.model_dump() for t in profile_service.traces()]})
+    """逐步浮现的痕迹。
+
+    真实优先：读当前账号的 followees / favorites / contents。
+    拿不到就退回演示数据，前端据 is_mock 决定是否标注「演示数据」。
+    """
+    real, used_real = await profile_extractor.fetch_traces()
+    items = real if used_real else profile_service.traces()
+    return ok(
+        {
+            "items": [t.model_dump() for t in items],
+            "source": "oauth" if used_real else "mock",
+        }
+    )
 
 
 @router.post("/onboarding/from-zhihu")
 async def from_zhihu() -> dict:
-    """Phase 1 不接 OAuth，直接返回演示画像。"""
+    """用知乎认识我。
+
+    真实链路：足迹 → ProfileExtractor → ContributionProfile → MindPortrait。
+    任一环节失败退回 MockProfileService —— OAuth 是增强路径，
+    不是 MindMine 能否工作的前提。
+    """
+    evidence, used_real = await profile_extractor.fetch_traces()
+    if used_real:
+        built = await profile_extractor.build_portrait(evidence)
+        if built is not None:
+            profile, portrait, _ = built
+            state = profile_service.adopt(profile, portrait)
+            return ok({**state.model_dump(mode="json"), "source": "oauth"})
+
     state = profile_service.from_zhihu()
-    return ok(state.model_dump(mode="json"))
+    return ok({**state.model_dump(mode="json"), "source": "mock"})
 
 
 # --------------------------------------------------------------------------
@@ -100,7 +125,17 @@ async def correct(req: CorrectionRequest) -> dict:
 
 @router.get("/onboarding/{onboarding_id}/questions")
 async def matched_questions(onboarding_id: str) -> dict:
-    if profile_service.get(onboarding_id) is None:
+    state = profile_service.get(onboarding_id)
+    if state is None:
         raise _not_found(onboarding_id)
-    items = profile_service.match_questions(onboarding_id)
-    return ok({"items": [q.model_dump() for q in items]})
+
+    # Mock 永久保留，作为真实链路失败时的 Demo fallback
+    mock_items = profile_service.match_questions(onboarding_id)
+    items, used_real = await question_matcher.find_questions(state.profile, mock_items)
+
+    return ok(
+        {
+            "items": [q.model_dump() for q in items],
+            "source": "api" if used_real else "mock",
+        }
+    )

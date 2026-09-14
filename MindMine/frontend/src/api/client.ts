@@ -106,10 +106,20 @@ export const api = {
       `/onboarding/${onboardingId}/questions`,
     ),
 
-  createSession: (profile: UserProfile, questionId: string) =>
+  createSession: (
+    profile: UserProfile,
+    questionId: string,
+    title = '',
+    url = '',
+  ) =>
     request<Session>('/sessions', {
       method: 'POST',
-      body: JSON.stringify({ profile, question_id: questionId }),
+      body: JSON.stringify({
+        profile,
+        question_id: questionId,
+        title,
+        url,
+      }),
     }),
 
   getSession: (sessionId: string) =>

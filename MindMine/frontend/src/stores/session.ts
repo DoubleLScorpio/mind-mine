@@ -171,14 +171,14 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
-  async function startSession(questionId: string) {
+  async function startSession(questionId: string, title = '', url = '') {
     if (!profile.value) {
       errorMessage.value = '请先完成轻画像。'
       return null
     }
     return withGuard(async () => {
       reset()
-      const s = await api.createSession(profile.value!, questionId)
+      const s = await api.createSession(profile.value!, questionId, title, url)
       sessionId.value = s.id
       state.value = s.state
       question.value = s.question

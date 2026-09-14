@@ -82,6 +82,22 @@ class MockProfileService:
         self._states[state.onboarding_id] = state
         return state
 
+    def adopt(
+        self, profile: ContributionProfile, portrait: MindPortrait
+    ) -> OnboardingState:
+        """接纳外部（真实 OAuth + LLM）生成的画像。
+
+        存进同一个存储，这样后续的自然语言纠正和问题匹配
+        对 Mock 画像和真实画像走完全相同的代码路径。
+        """
+        return self._save(
+            OnboardingState(
+                onboarding_id=self._new_id(),
+                profile=profile,
+                portrait=portrait,
+            )
+        )
+
     @staticmethod
     def _new_id() -> str:
         return f"ob_{uuid.uuid4().hex[:12]}"

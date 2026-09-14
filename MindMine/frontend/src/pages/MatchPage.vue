@@ -47,7 +47,8 @@ async function claim() {
     share_preferences: ['experience'],
   })
 
-  const s = await store.startSession(q.question_id)
+  // 真实问题必须把标题/链接一起带上，否则后端拿不到用户实际看到的那道题
+  const s = await store.startSession(q.question_id, q.title, q.url ?? '')
   starting.value = false
   if (s) router.push(`/mine/${q.question_id}`)
 }
