@@ -28,16 +28,25 @@ git push -u origin main
 
 1. 打开 https://render.com，注册或登录
 2. New → Web Service → Connect a repository → 选刚才的 GitHub 仓库
-3. 配置如下：
+3. Render 检测到 `MindMine/backend/Dockerfile` 后会自动切到 **Docker** 模式，
+   此时界面上没有 Build / Start Command，只有 Docker Command —— 这是正常的。
 
 | 字段 | 值 |
 |------|-----|
 | Name | mindmine-backend |
+| Language / Runtime | Docker（自动识别） |
 | Root Directory | `MindMine/backend` |
-| Runtime | Python 3 |
-| Build Command | `pip install -r requirements.txt` |
-| Start Command | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+| Dockerfile Path | `./Dockerfile` |
+| Docker Command | **留空**（用 Dockerfile 里的 `CMD`） |
+| Health Check Path | `/api/v1/health` |
 | Instance Type | Free（Hackathon 够用） |
+
+> **Docker Command 为什么留空**：`Dockerfile` 最后一行已经写了
+> `CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]`，
+> Render 会直接执行它。若界面强制要求填写，就把这条命令原样填进去。
+>
+> `${PORT}` 必须保留：Render 动态分配端口并通过 `PORT` 环境变量注入，
+> 写死 8000 会导致健康检查失败、服务卡在部署中。
 
 ### 3.2 配置环境变量（Environment）
 
@@ -52,8 +61,8 @@ git push -u origin main
 | `LLM_TIMEOUT_SECONDS` | `30` | 线上网络比本地慢，稍微放长 |
 | `LLM_MAX_RETRIES` | `1` | |
 | `ZHIHU_PROVIDER` | `auto` | |
-| `ZHIHU_ACCESS_SECRET` | `<你的知乎 Access Secret>` | 用 Secret 类型；CLI 会自动读取 |
-| `ZHIHU_CLI_PATH` | 留空 | Render 容器没有看山工作台，这里留空会让知乎走 mock |
+| `ZHIHU_ACCESS_SECRET` | `<你的知乎 Access Secret>` | 用 Secret 类型；zhihu-cli 优先读此变量，不依赖钥匙串 |
+| `ZHIHU_CLI_PATH` | 留空 | Docker 镜像内没有 zhihu-cli，留空即走 mock |
 | `ZHIHU_TIMEOUT_SECONDS` | `20` | |
 | `PROFILE_PROVIDER` | `auto` | |
 | `CORS_ORIGINS` | 部署前端后填入，例如 `https://mindmine-xxx.vercel.app` | |
@@ -63,9 +72,11 @@ git push -u origin main
 > **注意**：Render 的 Free 实例在 15 分钟无请求后会休眠，第一次唤醒需要约 30-60 秒。
 > Hackathon Demo 前，先用浏览器访问一次 `/health` 接口唤醒它。
 
-> **关于知乎**：Render 容器没有看山工作台内置的 zhihu-cli，`ZHIHU_CLI_PATH` 留空时
-> `resolved_zhihu_cli_path()` 会返回一个不存在的路径，`zhihu.available` 为 False，
-> 自动 fallback 到 Mock 问题和 Mock 观点。LLM 功能（Mining / Insight / Compose）不受影响。
+> **关于知乎**：Docker 镜像里没有 zhihu-cli 二进制（它是看山工作台随附的 macOS 程序），
+> `ZHIHU_CLI_PATH` 留空时 `resolved_zhihu_cli_path()` 返回的默认路径在容器内不存在，
+> `zhihu.available` 为 False，自动 fallback 到 Mock 问题和 Mock 观点。
+> LLM 功能（Mining / Insight / Compose）不受影响。
+> 即便如此也建议照填 `ZHIHU_ACCESS_SECRET`，后续补上 Linux 版 CLI 即可直接生效。
 > 如果需要线上跑真实知乎：见下方「进阶：线上知乎」。
 
 ### 3.3 记录 Backend URL

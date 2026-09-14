@@ -1,9 +1,15 @@
 services:
   - type: web
     name: mindmine-backend
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    # Docker 模式：启动命令由 backend/Dockerfile 的 CMD 提供，
+    # 这里不写 buildCommand / startCommand，避免与 Docker runtime 冲突。
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    rootDir: MindMine/backend
+    plan: free
+    # 健康检查：Render 用它判断实例是否就绪
+    healthCheckPath: /api/v1/health
     envVars:
       # ---------- Provider 开关 ----------
       - key: LLM_PROVIDER
@@ -12,28 +18,40 @@ services:
         value: auto
       - key: PROFILE_PROVIDER
         value: auto
+
       # ---------- LLM（DeepSeek） ----------
-      # LLM_API_KEY：在 Render Dashboard → Environment 里配置，不要写在这里
+      # sync: false = 不写进仓库，须在 Render Dashboard → Environment 手工填入
+      - key: LLM_API_KEY
+        sync: false
       - key: LLM_BASE_URL
         value: https://api.deepseek.com/v1
       - key: LLM_MODEL
         value: deepseek-chat
+      # 线上网络比本机慢，超时放宽
       - key: LLM_TIMEOUT_SECONDS
         value: "30"
       - key: LLM_MAX_RETRIES
         value: "1"
+
       # ---------- 知乎 ----------
-      # ZHIHU_ACCESS_SECRET：在 Render Dashboard → Environment 里配置（Secret 类型）
-      # zhihu-cli 线上路径：Render 容器里不带 zhihu-cli，需要在 buildCommand 里处理
-      # 见 DEPLOY.md 的说明
+      # zhihu-cli 优先读 ZHIHU_ACCESS_SECRET，不依赖系统钥匙串。
+      # 但 Render 容器内没有 zhihu-cli 二进制，当前线上仍会 fallback 到 Mock，
+      # 详见 DEPLOY.md「进阶：线上知乎」。
+      - key: ZHIHU_ACCESS_SECRET
+        sync: false
+      - key: ZHIHU_CLI_PATH
+        value: ""
       - key: ZHIHU_TIMEOUT_SECONDS
         value: "20"
+
       # ---------- CORS ----------
-      # 部署前端后填入 Vercel 分配的域名，例如 https://mindmine.vercel.app
+      # 部署完前端后，填入 Vercel 分配的域名并重新部署。不要用 "*"。
       - key: CORS_ORIGINS
-        value: https://YOUR_FRONTEND_URL.vercel.app
+        sync: false
+
       # ---------- 日志 ----------
       - key: LOG_LEVEL
         value: INFO
+      # 只记录 stage / provider / latency / fallback，不记录任何凭据
       - key: VERBOSE_PROVIDER_LOG
         value: "true"
