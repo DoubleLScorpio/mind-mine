@@ -33,7 +33,11 @@ logger = logging.getLogger("mindmine.oauth")
 router = APIRouter(prefix="/oauth/zhihu", tags=["oauth"])
 
 _STATE_COOKIE = "mm_oauth_state"
-_COOKIE_PATH = "/oauth/zhihu"
+# 路由实际挂在 /api/v1 前缀下，完整路径是 /api/v1/oauth/zhihu/*。
+# cookie path 必须与之匹配，否则 callback 请求不会回传 state cookie，
+# 后端会误判 missing_state。这里用 /api/v1/oauth/zhihu 精确覆盖
+# authorize 与 callback 两个端点。
+_COOKIE_PATH = "/api/v1/oauth/zhihu"
 
 
 def _oauth_unavailable() -> HTTPException:
