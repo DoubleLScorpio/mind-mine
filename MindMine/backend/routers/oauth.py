@@ -104,15 +104,22 @@ async def callback(
     # 知乎回调实测主用 authorization_code，兼容 code
     auth_code = (authorization_code or code or "").strip()
 
-    # 校验 state：cookie 与 query（若知乎回传）必须一致，且未消费过
-    if not mm_oauth_state:
-        logger.warning("oauth callback missing state cookie")
-        return _frontend("/oauth/return?error=missing_state")
-    if state and state != mm_oauth_state:
+    # state 校验：知乎线上实测会回传 state（query）。state 是本次授权
+    # 请求的随机一次性标识，优先用它绑定会话；cookie 只作辅助、不强制，
+    # 避免跨域 / 浏览器策略导致 cookie 丢失时误判 missing_state。
+    q_state = (state or "").strip()
+    c_state = (mm_oauth_state or "").strip()
+
+    if q_state and c_state and q_state != c_state:
         logger.warning("oauth callback state mismatch")
         return _frontend("/oauth/return?error=state_mismatch")
 
-    flow = oauth_store.consume(mm_oauth_state)
+    effective_state = q_state or c_state
+    if not effective_state:
+        logger.warning("oauth callback missing state")
+        return _frontend("/oauth/return?error=missing_state")
+
+    flow = oauth_store.consume(effective_state)
     if flow is None:
         logger.warning("oauth callback invalid/expired state")
         return _frontend("/oauth/return?error=invalid_state")
