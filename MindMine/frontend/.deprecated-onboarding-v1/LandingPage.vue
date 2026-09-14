@@ -150,8 +150,6 @@ function go() {
         </button>
       </div>
     </div>
-
-    <footer class="foot">Phase 1 演示版本，问题与社区观点均为演示数据</footer>
   </div>
 </template>
 

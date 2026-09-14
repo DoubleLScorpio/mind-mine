@@ -57,10 +57,6 @@ async function byChat() {
         你可以随时修改 MindMine 对你的理解。
       </p>
     </div>
-
-    <footer class="foot">
-      Phase 1 未接入知乎登录，以下内容均为演示数据
-    </footer>
   </div>
 </template>
 

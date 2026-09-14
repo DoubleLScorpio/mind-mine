@@ -96,8 +96,6 @@ async function claim() {
     <div v-if="store.errorMessage" class="error-banner">
       {{ store.errorMessage }}
     </div>
-
-    <footer class="foot">演示数据</footer>
   </div>
 </template>
 
