@@ -1,0 +1,32 @@
+# ---------- 密钥：绝不入库 ----------
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*secret*
+*credential*
+.zhihu-cli/
+.dws/
+
+# ---------- 依赖与构建产物 ----------
+node_modules/
+dist/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---------- 工具与临时文件 ----------
+.box-agent/
+.box-agent-scratch/
+.playwright-mcp/
+persp.json
+*.log
+.DS_Store
+.vscode/
+.idea/

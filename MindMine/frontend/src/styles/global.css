@@ -1,0 +1,250 @@
+:root {
+  color-scheme: dark;
+
+  /* 中性色阶 */
+  --bg: #07080c;
+  --bg-soft: #0c0e15;
+  --surface: #11141d;
+  --surface-raised: #171b27;
+  --border: #232838;
+  --border-strong: #303851;
+
+  --text: #eef1f8;
+  --text-muted: #9aa3b8;
+  --text-dim: #6b748c;
+
+  /* 强调色：深靛蓝 */
+  --accent: #6e8bff;
+  --accent-soft: #8ea4ff;
+  --accent-dim: rgba(110, 139, 255, 0.14);
+
+  /* Insight 时刻专用暖金色，与常规流程形成视觉层级差 */
+  --insight: #ffd479;
+  --insight-dim: rgba(255, 212, 121, 0.12);
+
+  --radius: 16px;
+  --radius-sm: 10px;
+
+  /* 统一缓动。ease-out 系，禁止 bounce / elastic —— 这是一个严肃产品 */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 背景氛围光 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      60rem 40rem at 15% -10%,
+      rgba(110, 139, 255, 0.1),
+      transparent 60%
+    ),
+    radial-gradient(
+      50rem 35rem at 100% 0%,
+      rgba(160, 110, 255, 0.07),
+      transparent 55%
+    );
+  z-index: 0;
+}
+
+#app {
+  position: relative;
+  z-index: 1;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+input,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+a {
+  color: var(--accent-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- 通用布局 ---------- */
+
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+.page-narrow {
+  max-width: 780px;
+}
+
+/* ---------- 通用组件 ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 22px;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #8d6bff);
+  color: #fff;
+  box-shadow: 0 6px 24px rgba(110, 139, 255, 0.28);
+}
+
+.btn-secondary {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+}
+
+.btn-ghost {
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.btn-insight {
+  background: linear-gradient(135deg, var(--insight), #ffb84d);
+  color: #2a1e05;
+  box-shadow: 0 6px 24px rgba(255, 212, 121, 0.25);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--accent-dim);
+  color: var(--accent-soft);
+  border: 1px solid rgba(110, 139, 255, 0.24);
+}
+
+.tag-mock {
+  background: rgba(255, 176, 92, 0.12);
+  color: #ffb05c;
+  border-color: rgba(255, 176, 92, 0.3);
+}
+
+.error-banner {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 106, 106, 0.1);
+  border: 1px solid rgba(255, 106, 106, 0.3);
+  color: #ff9d9d;
+  font-size: 14px;
+}
+
+.section-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* ---------- 滚动条 ---------- */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- 动效（克制） ---------- */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-up {
+  animation: fade-up 0.4s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
