@@ -371,7 +371,7 @@ async function saveOwnEdit() {
 
 .q {
   margin: 0;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 550;
   color: var(--text-muted);
   letter-spacing: -0.01em;

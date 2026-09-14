@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from config import settings
+from services.llm_service import llm
 from models.session import (
     ChallengeRespondRequest,
     ComposeResponse,
@@ -31,6 +32,18 @@ router = APIRouter()
 
 def ok(data) -> dict:
     return {"ok": True, "data": data}
+
+
+def _dev(used_real: bool) -> dict:
+    """开发态 provider/source 标记。
+    verbose_provider_log=False 时返回空 dict，不污染生产响应。
+    """
+    if not settings.verbose_provider_log:
+        return {}
+    return {
+        "_provider": settings.llm_model if used_real else "mock",
+        "_source": "real" if used_real else "mock_fallback",
+    }
 
 
 def _not_found(session_id: str) -> HTTPException:
@@ -158,7 +171,7 @@ async def post_message(session_id: str, req: PostMessageRequest) -> dict:
         )
 
     try:
-        session, ai_reply, insight_ready, _used_real = await store.post_message(
+        session, ai_reply, insight_ready, used_real = await store.post_message(
             session_id, content
         )
     except SessionNotFoundError:
@@ -176,7 +189,7 @@ async def post_message(session_id: str, req: PostMessageRequest) -> dict:
         insight_ready=insight_ready,
         insight=session.insight_v1 if insight_ready else None,
     )
-    return ok(payload.model_dump(mode="json"))
+    return ok({**payload.model_dump(mode="json"), **_dev(used_real)})
 
 
 # --------------------------------------------------------------------------
@@ -187,7 +200,7 @@ async def post_message(session_id: str, req: PostMessageRequest) -> dict:
 @router.post("/sessions/{session_id}/insight/confirm")
 async def confirm_insight(session_id: str) -> dict:
     try:
-        session = await store.confirm_insight(session_id)
+        session, perspective_real = await store.confirm_insight(session_id)
     except SessionNotFoundError:
         raise _not_found(session_id)
     except InvalidStateError as exc:
@@ -198,6 +211,7 @@ async def confirm_insight(session_id: str) -> dict:
             "state": session.state.value,
             "insight_v1": session.insight_v1.model_dump(mode="json"),
             "challenge": session.challenge.model_dump(mode="json"),
+            **_dev(perspective_real),
         }
     )
 
@@ -234,7 +248,7 @@ async def respond_challenge(
         )
 
     try:
-        session = await store.respond_challenge(session_id, content)
+        session, refine_real = await store.respond_challenge(session_id, content)
     except SessionNotFoundError:
         raise _not_found(session_id)
     except InvalidStateError as exc:
@@ -246,6 +260,7 @@ async def respond_challenge(
             "insight_v1": session.insight_v1.model_dump(mode="json"),
             "insight_v2": session.insight_v2.model_dump(mode="json"),
             "challenge_summary": demo_content.CHALLENGE_SUMMARY,
+            **_dev(refine_real),
         }
     )
 
@@ -351,5 +366,6 @@ async def compose(session_id: str) -> dict:
             **payload.model_dump(mode="json"),
             "state": session.state.value,
             "challenge_summary": demo_content.CHALLENGE_SUMMARY,
+            **_dev(llm.available),
         }
     )

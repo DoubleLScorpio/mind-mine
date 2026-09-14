@@ -171,3 +171,48 @@ async def build_portrait(
 
     logger.info("profile stage=portrait provider=real fallback=False")
     return profile, portrait, True
+
+
+def portrait_from_evidence(
+    evidence: list[ProfileEvidence],
+) -> tuple[ContributionProfile, MindPortrait] | None:
+    """真实足迹已拿到、但 LLM 失败时的兜底。
+
+    仍然只使用真实足迹里的词，绝不退回与这个人无关的 demo persona。
+    调用方必须把 _source 标记为 mock_fallback。
+    """
+    if not evidence:
+        return None
+
+    follows = next((e.items for e in evidence if e.kind == "follow"), [])
+    favs = next((e.items for e in evidence if e.kind == "favorite"), [])
+    creations = next((e.items for e in evidence if e.kind == "creation"), [])
+
+    angles = [x.strip() for x in (favs + creations) if x.strip()][:4]
+    if not angles:
+        angles = [x.strip() for x in follows if x.strip()][:4]
+    if not angles:
+        return None
+
+    profile = ContributionProfile(
+        source="oauth",
+        journey="正在关注这些方向的人",
+        lived_experiences=[x for x in creations if x][:5],
+        recurring_interests=[x for x in favs if x][:5],
+        possible_knowledge=["自己真实经历过、别人替代不了的部分"],
+        contribution_angles=angles,
+        evidence=evidence,
+    )
+    portrait = MindPortrait(
+        lead="从你留下的这些痕迹里，我好像看到这样一个你。",
+        paragraphs=[
+            "你反复停留的地方，大致集中在这几件事上。",
+            "这些痕迹是真的，但我这次没能把它们读得更深——"
+            "你可以直接告诉我，哪里不像。",
+        ],
+        topics=angles,
+        core_lead="而你真正值得写下来的，可能不是某个知识点。",
+        core_line="是那些——「做过之后才知道」的东西。",
+    )
+    logger.info("profile stage=portrait provider=mock fallback=True source=evidence")
+    return profile, portrait

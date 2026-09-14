@@ -55,8 +55,6 @@ watch(
         {{ ob.errorMessage }}
       </div>
     </div>
-
-    <footer class="foot">演示数据 · 未接入真实知乎账户</footer>
   </div>
 </template>
 

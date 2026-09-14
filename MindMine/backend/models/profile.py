@@ -50,7 +50,9 @@ class ContributionProfile(BaseModel):
     的自然语言描述与用户见面。
     """
 
-    source: Literal["mock_zhihu", "mock_chat", "oauth"] = "mock_zhihu"
+    # chat_llm：「先聊两句」路径由 LLM 生成
+    # chat_mock：chat 路径 LLM 失败后的关键词 fallback
+    source: Literal["mock_zhihu", "mock_chat", "oauth", "chat_llm", "chat_mock"] = "mock_zhihu"
 
     # 你在走什么路
     journey: str = ""

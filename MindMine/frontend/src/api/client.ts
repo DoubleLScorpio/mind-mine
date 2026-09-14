@@ -20,7 +20,17 @@ import type {
   ProfileEvidence,
 } from '@/types/profile'
 
-const BASE = '/api/v1'
+/**
+ * API 根地址。
+ *
+ * 本地开发：留空，走 vite.config.ts 的 /api 代理到 127.0.0.1:8078。
+ * 线上部署：设 VITE_API_BASE_URL=https://<backend-host>，指向独立部署的后端。
+ *
+ * 只允许放公开配置。任何 Secret（LLM_API_KEY / 知乎 Access Secret）
+ * 都不得出现在前端，只能配置在后端部署平台的环境变量里。
+ */
+const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+const BASE = `${API_ORIGIN}/api/v1`
 
 export class ApiError extends Error {
   code: string

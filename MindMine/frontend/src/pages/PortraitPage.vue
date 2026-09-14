@@ -184,8 +184,6 @@ async function looksLikeMe() {
         {{ ob.errorMessage }}
       </div>
     </div>
-
-    <footer class="foot">基于演示数据的理解</footer>
   </div>
 </template>
 

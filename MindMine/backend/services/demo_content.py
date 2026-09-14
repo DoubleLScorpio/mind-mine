@@ -252,6 +252,8 @@ DEMO_INSIGHT_V2 = Insight(
 )
 
 CHALLENGE_SUMMARY = "长期收益本身就存在不确定性。"
+# TODO: optional LLM-generated summary; not required for hackathon core flow
+# 当前为固定文本，不代表真实知乎原文，仅用于界面展示
 
 
 def compose_answer(session: Session) -> str:

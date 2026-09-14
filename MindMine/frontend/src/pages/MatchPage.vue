@@ -92,8 +92,6 @@ async function claim() {
         {{ store.errorMessage }}
       </div>
     </template>
-
-    <footer class="foot">演示数据</footer>
   </div>
 </template>
 

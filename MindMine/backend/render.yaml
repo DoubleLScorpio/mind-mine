@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: mindmine-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      # ---------- Provider 开关 ----------
+      - key: LLM_PROVIDER
+        value: auto
+      - key: ZHIHU_PROVIDER
+        value: auto
+      - key: PROFILE_PROVIDER
+        value: auto
+      # ---------- LLM（DeepSeek） ----------
+      # LLM_API_KEY：在 Render Dashboard → Environment 里配置，不要写在这里
+      - key: LLM_BASE_URL
+        value: https://api.deepseek.com/v1
+      - key: LLM_MODEL
+        value: deepseek-chat
+      - key: LLM_TIMEOUT_SECONDS
+        value: "30"
+      - key: LLM_MAX_RETRIES
+        value: "1"
+      # ---------- 知乎 ----------
+      # ZHIHU_ACCESS_SECRET：在 Render Dashboard → Environment 里配置（Secret 类型）
+      # zhihu-cli 线上路径：Render 容器里不带 zhihu-cli，需要在 buildCommand 里处理
+      # 见 DEPLOY.md 的说明
+      - key: ZHIHU_TIMEOUT_SECONDS
+        value: "20"
+      # ---------- CORS ----------
+      # 部署前端后填入 Vercel 分配的域名，例如 https://mindmine.vercel.app
+      - key: CORS_ORIGINS
+        value: https://YOUR_FRONTEND_URL.vercel.app
+      # ---------- 日志 ----------
+      - key: LOG_LEVEL
+        value: INFO
+      - key: VERBOSE_PROVIDER_LOG
+        value: "true"

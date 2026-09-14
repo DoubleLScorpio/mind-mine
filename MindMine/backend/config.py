@@ -10,12 +10,19 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Literal
+from pathlib import Path
+from typing import ClassVar, Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ProviderMode = Literal["real", "mock", "auto"]
+
+# .env 必须按本文件位置解析为绝对路径。
+# 用相对路径时，只有恰好从 backend/ 启动才能读到；
+# 从仓库根或用 --app-dir 启动会静默读不到凭据，
+# 于是 llm_configured=False，所有 Real 分支被悄悄封死。
+ENV_FILE = Path(__file__).resolve().parent / ".env"
 
 
 class Settings(BaseSettings):
@@ -28,7 +35,7 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -47,12 +54,15 @@ class Settings(BaseSettings):
     llm_max_retries: int = 1
 
     # ---------- 知乎 CLI ----------
-    # 由宿主注入的内置 CLI 绝对路径；留空则用 skill 的 run.sh 解析
-    zhihu_cli_path: str = (
-        "/Applications/看山工作台.app/Contents/Resources/"
-        "cli-bundle/zhihu/current/zhihu-cli"
-    )
+    # 留空时回退到宿主内置 CLI 的默认路径（见 resolved_zhihu_cli_path）。
+    # 注意：.env.example 里 ZHIHU_CLI_PATH= 是空值，会覆盖字段默认值，
+    # 所以默认路径不能写在这里，必须在解析时兜底。
+    zhihu_cli_path: str = ""
     zhihu_timeout_seconds: float = 20.0
+
+    # ---------- CORS ----------
+    # 逗号分隔的前端 origin 白名单。不使用通配符 "*"。
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     # ---------- 其他 ----------
     log_level: str = "INFO"
@@ -78,6 +88,24 @@ class Settings(BaseSettings):
         if self.zhihu_provider == "mock":
             return "mock"
         return "real" if self.zhihu_provider == "real" else "real"
+
+    # 宿主内置知乎 CLI 的默认位置。ZHIHU_CLI_PATH 为空时使用。
+    DEFAULT_ZHIHU_CLI: ClassVar[str] = (
+        "/Applications/看山工作台.app/Contents/Resources/"
+        "cli-bundle/zhihu/current/zhihu-cli"
+    )
+
+    def resolved_zhihu_cli_path(self) -> str:
+        """解析实际使用的 zhihu-cli 路径。
+
+        .env.example 中 ZHIHU_CLI_PATH= 是空值，会覆盖字段默认值，
+        因此必须在这里兜底，否则知乎能力会被静默关闭。
+        """
+        return self.zhihu_cli_path.strip() or self.DEFAULT_ZHIHU_CLI
+
+    def cors_origin_list(self) -> list[str]:
+        """解析 CORS 白名单。不使用通配符 "*"。"""
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     def masked_key(self) -> str:
         """只用于日志。永不输出完整密钥。"""

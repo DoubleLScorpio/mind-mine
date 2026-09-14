@@ -85,20 +85,23 @@ def _lead_sentence(text: str, limit: int = 70) -> str:
 
 async def _to_question(
     answer: ZhihuAnswer, user_insight: str, question_title: str
-) -> tuple[str, str, bool]:
+) -> tuple[str, str, bool, bool]:
     """把一条真实回答改写成对用户的追问。
 
-    返回 (claim, challenge_question, is_opposing)。
-    无 LLM 时退回「原文首句 + 中性引导」，仍然是真实内容，不虚构。
+    返回 (claim, challenge_question, is_opposing, used_real)。
+    无 LLM 时退回「原文首句 + 中性引导」：内容仍来自真实回答，
+    但 used_real=False，调用方必须据此标记 mock_fallback。
     """
     snippet = answer.content_text[:280]
     lead = _lead_sentence(answer.content_text)
 
     if not llm.available:
         # 没有模型也要保持 grounding：claim 用原文首句，追问用中性引导
+        logger.info("perspective stage=rewrite provider=mock fallback=True reason=llm_unavailable")
         return (
             lead,
             f"有人是这么看的：「{lead}」\n如果照这个说法，你那句判断还成立吗？",
+            False,
             False,
         )
 
@@ -129,12 +132,16 @@ async def _to_question(
             out.claim.strip() or snippet[:120],
             out.challenge_question.strip(),
             bool(out.is_opposing),
+            True,
         )
     except LLMUnavailable as exc:
-        logger.warning("perspective rewrite fallback: %s", exc)
+        logger.warning(
+            "perspective stage=rewrite provider=mock fallback=True reason=%s", exc
+        )
         return (
             snippet[:120],
             f"有人是这么看的：「{snippet[:110]}」\n如果照这个说法，你那句判断还成立吗？",
+            False,
             False,
         )
 
@@ -165,26 +172,40 @@ async def fetch_perspective(
         return demo_content.DEMO_CHALLENGE.model_copy(deep=True), False
 
     # 优先选真正构成不同视角的那条
-    best: tuple[ZhihuAnswer, str, str, bool] | None = None
+    best: tuple[ZhihuAnswer, str, str, bool, bool] | None = None
     for a in candidates[:3]:
-        claim, cq, opposing = await _to_question(a, user_insight, question_title)
+        claim, cq, opposing, rewrite_real = await _to_question(
+            a, user_insight, question_title
+        )
         if not cq:
             continue
         if opposing:
-            best = (a, claim, cq, True)
+            best = (a, claim, cq, True, rewrite_real)
             break
         if best is None:
-            best = (a, claim, cq, False)
+            best = (a, claim, cq, False, rewrite_real)
 
     if best is None:
+        logger.info("perspective provider=mock fallback=True reason=no_rewrite")
         return demo_content.DEMO_CHALLENGE.model_copy(deep=True), False
 
-    answer, claim, cq, opposing = best
+    answer, claim, cq, opposing, rewrite_real = best
     author = answer.author_name or "知乎用户"
 
+    # 来源关系必须如实反映：绝不能把相关问题伪装成「这个问题下的回答」
+    same_q = bool(question_id) and answer.question_id == question_id
+    relation = "same_question" if same_q else "related_question"
+    source_label = (
+        f"这个问题下 · {author}" if same_q else f"知乎相关问题 · {author}"
+    )
+
     logger.info(
-        "perspective provider=real fallback=False opposing=%s author_dedup=%d/%d",
+        "perspective provider=real fallback=%s relation=%s opposing=%s "
+        "rewrite=%s author_dedup=%d/%d",
+        not rewrite_real,
+        relation,
         opposing,
+        "real" if rewrite_real else "mock",
         len(candidates),
         len(answers),
     )
@@ -198,10 +219,13 @@ async def fetch_perspective(
             author=author,
             badge=answer.badge or answer.authority_level or "",
             # 真实模式显示轻量来源，不抢走用户观点的中心地位
-            source_label=f"来自知乎社区 · {author}",
+            source_label=source_label,
             source_url=answer.url or None,
             challenge_question=cq,
             is_mock=False,
+            source_relation=relation,
+            source_question_id=answer.question_id or "",
         ),
-        True,
+        # 检索是真的，但改写退回模板时整体不算 real
+        rewrite_real,
     )

@@ -21,7 +21,7 @@ const router = useRouter()
 
       <h1 class="hook">
         你在知乎读过很多人的答案。<br />
-        这次，换你。
+        这次，换你来。
       </h1>
 
       <p class="slogan">You know more than you think.</p>

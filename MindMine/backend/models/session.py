@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+
 from enum import Enum
 from typing import Literal
 
@@ -201,8 +202,14 @@ class Insight(BaseModel):
 class CommunityPerspective(BaseModel):
     """社区观点。
 
-    Phase 1 使用 Mock 数据，is_mock 必须为 True，
-    前端必须显式标注「演示数据」，不得伪装成真实知乎作者。
+    真实模式：内容必须来自真实知乎回答，可追溯到 author / url / question_id。
+    Mock 模式：is_mock=True，前端必须显式标注「演示数据」，
+    不得伪装成真实知乎作者。
+
+    source_relation 决定前端文案，绝不能把相关问题伪装成本题下的回答：
+      same_question    「这个问题下，有人提出了另一种看法。」
+      related_question 「知乎上还有一种相关观点。」
+      demo             演示数据，不来自任何真实问题
     """
 
     id: str
@@ -214,6 +221,11 @@ class CommunityPerspective(BaseModel):
     source_url: str | None = None
     challenge_question: str
     is_mock: bool = True
+
+    # 观点与当前问题的关系。真实模式下必须如实反映来源。
+    source_relation: Literal["same_question", "related_question", "demo"] = "demo"
+    # 来源问题的知乎数字 id，用于前端追溯
+    source_question_id: str = ""
 
 
 # --------------------------------------------------------------------------

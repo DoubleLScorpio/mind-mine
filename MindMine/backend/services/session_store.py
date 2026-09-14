@@ -257,7 +257,7 @@ class SessionStore:
             session.insight_v1.user_edited_text or session.insight_v1.deep_insight
         )
         q = session.question
-        perspective, _used_real = await perspective_service.fetch_perspective(
+        perspective, used_real = await perspective_service.fetch_perspective(
             question_title=q.title if q else "",
             question_id=_question_id_of(q),
             user_insight=insight_text,
@@ -265,7 +265,7 @@ class SessionStore:
         session.challenge = perspective
         session.state = SessionState.CHALLENGE
         session.touch()
-        return session
+        return session, used_real
 
     def edit_insight(self, session_id: str, text: str) -> Session:
         """用户选择「我想修改」时提交自己的表述。"""
@@ -294,13 +294,13 @@ class SessionStore:
             raise InvalidStateError(session.state, "CHALLENGE")
 
         session.challenge_response = content
-        insight_v2, _ = await engine.refine_insight(session, content)
+        insight_v2, refine_real = await engine.refine_insight(session, content)
         session.insight_v2 = insight_v2
         session.insight_v2_owned = False
         session.take_kept = False
         session.state = SessionState.REFINEMENT
         session.touch()
-        return session
+        return session, refine_real
 
     # ------------------------------------------------------------------
     # 观点压力测试的另外两条出口

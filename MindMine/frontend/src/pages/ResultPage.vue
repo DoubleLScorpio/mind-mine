@@ -8,12 +8,14 @@
  * 合规红线：Phase 1 不得编造任何真实知乎统计（回答数、排名、阅读量），
  * 也不伪造发布能力。
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
+import { useBgmStore } from '@/stores/bgm'
 
 const router = useRouter()
 const store = useSessionStore()
+const bgm = useBgmStore()
 
 const editing = ref(false)
 const draft = ref('')
@@ -21,12 +23,19 @@ const copied = ref(false)
 const publishNotice = ref(false)
 
 onMounted(async () => {
+  // 读自己写出来的答案时，音乐再让一步
+  bgm.duck()
+
   if (!store.sessionId) {
     router.replace('/')
     return
   }
   if (!store.composedAnswer) await store.compose()
   draft.value = store.composedAnswer
+})
+
+onUnmounted(() => {
+  bgm.undock()
 })
 
 /** 把 Mock Composer 的极简 Markdown 渲染成段落 / 小标题 */
@@ -153,8 +162,6 @@ function restart() {
     </p>
 
     <button class="restart" @click="restart">再挖一个问题</button>
-
-    <footer class="foot">演示数据 · 未接入真实知乎 API</footer>
   </div>
 </template>
 

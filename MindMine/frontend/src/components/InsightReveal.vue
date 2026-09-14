@@ -12,10 +12,13 @@
  *   naming   先给经历命名（只是复述用户做过什么，不加判断）
  *   insight  再长出观点
  */
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import FragmentField from './FragmentField.vue'
 import type { FragmentLink, Insight, ThoughtFragment } from '@/types'
 import type { RevealPhase } from '@/stores/session'
+import { useBgmStore } from '@/stores/bgm'
+
+const bgm = useBgmStore()
 
 const props = defineProps<{
   phase: RevealPhase
@@ -40,6 +43,10 @@ const showWhisper = computed(() =>
 )
 const showNaming = computed(() => ['naming', 'insight'].includes(props.phase))
 const showInsight = computed(() => props.phase === 'insight')
+
+// Insight 亮相的那一刻，音乐轻微退后。
+// 不换歌、不加高潮 —— 这一刻的主角是用户自己的话。
+watch(showInsight, (on) => (on ? bgm.duck() : bgm.undock()))
 
 /** 被点名的两张：代价与结果。经历链里最刺的那部分 */
 const HIGHLIGHT = ['f_cost', 'f_outcome']

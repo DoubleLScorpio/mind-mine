@@ -8,6 +8,9 @@
 *credential*
 .zhihu-cli/
 .dws/
+# 历史遗留的凭据文件：曾被手工用于存放 LLM_API_KEY。
+# 凭据现已迁移到 backend/.env，此文件应清空或删除。
+MindMine/frontend/src/env.js
 
 # ---------- 依赖与构建产物 ----------
 node_modules/
@@ -30,3 +33,10 @@ persp.json
 .DS_Store
 .vscode/
 .idea/
+
+# 临时验证脚本
+MindMine/backend/_smoke_*.py
+MindMine/backend/_verify_*.py
+
+# TypeScript 构建缓存
+*.tsbuildinfo

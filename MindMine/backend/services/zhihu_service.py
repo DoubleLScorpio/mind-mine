@@ -67,7 +67,7 @@ class ZhihuService:
     """唯一的知乎适配器。"""
 
     def __init__(self) -> None:
-        self._cli = settings.zhihu_cli_path
+        self._cli = settings.resolved_zhihu_cli_path()
 
     @property
     def available(self) -> bool:

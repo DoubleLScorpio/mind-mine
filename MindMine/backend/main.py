@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from config import settings
 from routers.onboarding import router as onboarding_router
 from routers.sessions import router as sessions_router
 
@@ -26,12 +27,14 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# CORS：只放行必要的前端 origin，不使用通配符 "*"。
+# 通过环境变量 CORS_ORIGINS 注入额外域名（逗号分隔）。
+_allow_origins = settings.cors_origin_list()
+logger.info("cors allow_origins=%s", _allow_origins)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=_allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

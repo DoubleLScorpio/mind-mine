@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
+from config import settings
 from models.profile import ChatAnswerRequest, CorrectionRequest
 from services import profile_extractor, question_matcher
 from services.profile_service import profile_service
@@ -20,6 +21,16 @@ router = APIRouter()
 
 def ok(data) -> dict:
     return {"ok": True, "data": data}
+
+
+def _dev(used_real: bool) -> dict:
+    """开发态 provider/source 标记。生产可通过 VERBOSE_PROVIDER_LOG=false 关闭。"""
+    if not settings.verbose_provider_log:
+        return {}
+    return {
+        "_provider": settings.llm_model if used_real else "mock",
+        "_source": "real" if used_real else "mock_fallback",
+    }
 
 
 def _not_found(onboarding_id: str) -> HTTPException:
@@ -71,10 +82,20 @@ async def from_zhihu() -> dict:
         if built is not None:
             profile, portrait, _ = built
             state = profile_service.adopt(profile, portrait)
-            return ok({**state.model_dump(mode="json"), "source": "oauth"})
+            return ok({**state.model_dump(mode="json"), "source": "oauth", **_dev(True)})
+
+        # 足迹是真的、只是 LLM 失败：仍然用真实足迹兜底，
+        # 绝不退回与这个人无关的 demo persona。
+        salvaged = profile_extractor.portrait_from_evidence(evidence)
+        if salvaged is not None:
+            profile, portrait = salvaged
+            state = profile_service.adopt(profile, portrait)
+            return ok(
+                {**state.model_dump(mode="json"), "source": "oauth", **_dev(False)}
+            )
 
     state = profile_service.from_zhihu()
-    return ok({**state.model_dump(mode="json"), "source": "mock"})
+    return ok({**state.model_dump(mode="json"), "source": "mock", **_dev(False)})
 
 
 # --------------------------------------------------------------------------
@@ -91,8 +112,9 @@ async def chat_question(step: int) -> dict:
 
 @router.post("/onboarding/from-chat")
 async def from_chat(req: ChatAnswerRequest) -> dict:
-    state = profile_service.from_chat(req)
-    return ok(state.model_dump(mode="json"))
+    state = await profile_service.from_chat(req)
+    used_real = state.profile.source == "chat_llm"
+    return ok({**state.model_dump(mode="json"), **_dev(used_real)})
 
 
 # --------------------------------------------------------------------------
@@ -112,10 +134,10 @@ async def correct(req: CorrectionRequest) -> dict:
             },
         )
 
-    state = profile_service.correct(req.onboarding_id, content)
+    state, used_real = await profile_service.correct(req.onboarding_id, content)
     if state is None:
         raise _not_found(req.onboarding_id)
-    return ok(state.model_dump(mode="json"))
+    return ok({**state.model_dump(mode="json"), **_dev(used_real)})
 
 
 # --------------------------------------------------------------------------
@@ -137,5 +159,6 @@ async def matched_questions(onboarding_id: str) -> dict:
         {
             "items": [q.model_dump() for q in items],
             "source": "api" if used_real else "mock",
+            **_dev(used_real),
         }
     )
