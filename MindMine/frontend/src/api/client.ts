@@ -17,7 +17,6 @@ import type {
 import type {
   MatchedQuestion,
   OnboardingState,
-  ProfileEvidence,
 } from '@/types/profile'
 
 /**
@@ -83,13 +82,13 @@ export const api = {
 
   // ---- Onboarding：不要让用户填写「我是谁」 ----
 
-  /** 逐步浮现的痕迹。Phase 1 全部是演示数据 */
-  traces: () =>
-    request<{ items: ProfileEvidence[] }>('/onboarding/traces'),
+  /** 知乎 OAuth 授权跳转地址（后端 authorize → 302 到知乎授权页） */
+  oauthAuthorizeUrl: (returnTo = '/oauth/return') =>
+    `${BASE}/oauth/zhihu/authorize?return_to=${encodeURIComponent(returnTo)}`,
 
-  /** 用知乎认识我。Phase 1 不接 OAuth */
-  fromZhihu: () =>
-    request<OnboardingState>('/onboarding/from-zhihu', { method: 'POST' }),
+  /** OAuth 回调后，按 onboarding_id 恢复画像 */
+  getOnboarding: (onboardingId: string) =>
+    request<OnboardingState>(`/onboarding/${onboardingId}`),
 
   /** 先聊两句：取第 step 个问题 */
   chatQuestion: (step: number) =>

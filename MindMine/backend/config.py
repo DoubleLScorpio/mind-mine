@@ -60,6 +60,19 @@ class Settings(BaseSettings):
     zhihu_cli_path: str = ""
     zhihu_timeout_seconds: float = 20.0
 
+    # ---------- 知乎 OAuth（用户登录） ----------
+    # 关键区分：Access Secret 是「平台调用方」凭据，绝不代表当前访客。
+    # 只有通过 OAuth 换取的 access_token（X-OAuth-Token）才代表当前授权用户。
+    zhihu_access_secret: str = ""
+    zhihu_app_id: str = ""
+    zhihu_app_key: str = ""
+    # 知乎授权完成后回调到后端的完整公开 URL（Railway），不是 localhost。
+    zhihu_oauth_redirect_uri: str = ""
+    # 前端公开地址（Vercel），callback 完成后 302 回这里。
+    frontend_url: str = "http://localhost:5173"
+    # 生产 HTTPS 下应置为 true，让 OAuth state cookie 只走 Secure。
+    oauth_cookie_secure: bool = False
+
     # ---------- CORS ----------
     # 逗号分隔的前端 origin 白名单。不使用通配符 "*"。
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
@@ -72,6 +85,21 @@ class Settings(BaseSettings):
     @property
     def llm_configured(self) -> bool:
         return bool(self.llm_api_key.strip())
+
+    @property
+    def zhihu_oauth_configured(self) -> bool:
+        """真实 OAuth 登录是否可用。
+
+        Access Secret 是平台调用方凭据，只用于换取/携带用户 token；
+        app_id + app_key 用于发起授权；redirect_uri 必须是非 localhost 的
+        公开回调地址。任一缺失都视为 OAuth 未配置。
+        """
+        return bool(
+            self.zhihu_app_id.strip()
+            and self.zhihu_app_key.strip()
+            and self.zhihu_access_secret.strip()
+            and self.zhihu_oauth_redirect_uri.strip()
+        )
 
     def llm_mode(self) -> Literal["real", "mock"]:
         """解析 LLM 的实际运行模式。

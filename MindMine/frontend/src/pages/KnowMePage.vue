@@ -12,6 +12,7 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useOnboardingStore } from '@/stores/onboarding'
+import { api } from '@/api/client'
 
 const router = useRouter()
 const ob = useOnboardingStore()
@@ -23,7 +24,9 @@ onMounted(() => {
 })
 
 async function byZhihu() {
-  router.push('/tracing')
+  // 整页跳转到后端 authorize，由后端 302 到知乎授权页。
+  // 不能前端 fetch：OAuth 授权必须在顶层浏览器导航中完成。
+  window.location.assign(api.oauthAuthorizeUrl('/oauth/return'))
 }
 
 async function byChat() {

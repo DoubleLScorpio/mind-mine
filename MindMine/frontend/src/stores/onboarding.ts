@@ -15,7 +15,6 @@ import type {
   ContributionProfile,
   MatchedQuestion,
   MindPortrait,
-  ProfileEvidence,
 } from '@/types/profile'
 
 /** Onboarding 的情绪线：Know → See → Find → Claim */
@@ -37,10 +36,6 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   const portrait = ref<MindPortrait | null>(null)
   const questions = ref<MatchedQuestion[]>([])
 
-  /** 逐步浮现的痕迹 */
-  const traces = ref<ProfileEvidence[]>([])
-  const revealedTraces = ref(0)
-
   /** 先聊两句 */
   const chatStep = ref(0)
   const chatQuestion = ref<string | null>(null)
@@ -57,8 +52,6 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     profile.value = null
     portrait.value = null
     questions.value = []
-    traces.value = []
-    revealedTraces.value = 0
     chatStep.value = 0
     chatQuestion.value = null
     chatHistory.value = []
@@ -89,31 +82,16 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     portrait.value = s.portrait
   }
 
-  // ---- 路径 A：用知乎认识我 ----
+  // ---- 路径 A：用知乎认识我（真实 OAuth）----
 
   /**
-   * 痕迹逐条浮现。不是 Loading，是「正在从散落的痕迹里认出一个人」。
-   * 所以每条之间有停顿，并且控制在几秒内。
+   * OAuth 回调后，按 onboarding_id 恢复本次会话的画像。
+   * 跳转知乎授权页本身发生在 KnowMePage（整页跳转到后端 authorize）。
    */
-  async function traceMe() {
+  async function completeOAuth(onboardingId: string) {
     stage.value = 'tracing'
-    revealedTraces.value = 0
-
-    const r = await withGuard(async () => {
-      const t = await api.traces()
-      traces.value = t.items
-      return t
-    })
-    if (!r) return null
-
-    for (let i = 0; i < traces.value.length; i++) {
-      await sleep(i === 0 ? 500 : 1250)
-      revealedTraces.value = i + 1
-    }
-    await sleep(1100)
-
     return withGuard(async () => {
-      const s = await api.fromZhihu()
+      const s = await api.getOnboarding(onboardingId)
       adopt(s)
       stage.value = 'portrait'
       return s
@@ -206,8 +184,6 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     profile,
     portrait,
     questions,
-    traces,
-    revealedTraces,
     chatStep,
     chatQuestion,
     chatHistory,
@@ -215,7 +191,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     errorMessage,
     ready,
     reset,
-    traceMe,
+    completeOAuth,
     startChat,
     answerChat,
     finishChatEarly,

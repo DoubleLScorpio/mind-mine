@@ -199,51 +199,18 @@ class ZhihuService:
         )
         return _parse_answers(data)
 
-
     # ------------------------------------------------------------------
-    # 当前账号自己的数据（Phase D）
+    # 身份边界（重要）
     #
-    # 只读取生成画像所需的最小范围。user_data quota 10000，
-    # 但仍然优先 followees + favorites，不无节制拉取。
+    # 此处曾提供 me_followees / me_favorite_titles / me_content_titles，
+    # 它们读取的是「Access Secret 所属账号本人」（即开发者）的知乎数据。
+    # 这类「当前账号本人」命令绝不能进入任何面向访客的用户身份路径 ——
+    # 未 OAuth 的访客会因此看到开发者的知乎数据。
+    #
+    # 现已移除。若要读「当前访问 MindMine 的用户」数据，只能走
+    # services/zhihu_oauth.py 的 OAuth 授权（X-OAuth-Token），
+    # 与这里的平台搜索能力（search / recommend / answers）彻底分开。
     # ------------------------------------------------------------------
-
-    async def me_followees(self, limit: int = 20) -> list[str]:
-        """我关注的人。用他们的领域反推「我常待在哪」。"""
-        data = await self._run(
-            ["me", "followees", "--limit", str(min(limit, 50))], stage="followees"
-        )
-        out: list[str] = []
-        for it in (data.get("Data") or {}).get("Items") or []:
-            name = (it.get("Fullname") or "").strip()
-            headline = (it.get("Headline") or "").strip()
-            if name:
-                out.append(f"{name}：{headline}" if headline else name)
-        return out
-
-    async def me_favorite_titles(self, limit: int = 20) -> list[str]:
-        """我的收藏夹标题。这是「我反复关心什么」的最强信号。"""
-        data = await self._run(
-            ["me", "favorites", "lists", "--limit", str(min(limit, 50))],
-            stage="favorites",
-        )
-        out: list[str] = []
-        for it in (data.get("Data") or {}).get("Items") or []:
-            title = (it.get("Title") or "").strip()
-            if title and title != "我的收藏":
-                out.append(title)
-        return out
-
-    async def me_content_titles(self, limit: int = 20) -> list[str]:
-        """我自己写过的东西。已经写出来的，说明我真的有话说。"""
-        data = await self._run(
-            ["me", "contents", "--limit", str(min(limit, 50))], stage="contents"
-        )
-        out: list[str] = []
-        for it in (data.get("Data") or {}).get("Items") or []:
-            title = (it.get("Title") or it.get("Summary") or "").strip()
-            if title:
-                out.append(title[:60])
-        return out
 
 
 def _parse_answers(data: dict) -> list[ZhihuAnswer]:

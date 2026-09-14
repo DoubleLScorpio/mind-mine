@@ -1,16 +1,17 @@
-"""真实画像提取：从知乎足迹里找「这个人有什么值得知乎听」。
+"""真实画像提取：从知乎 OAuth 用户足迹里找「这个人有什么值得知乎听」。
 
 目标不是描述人口属性，而是发现：
     这个人可能拥有、但还没有写出来的知识。
 
 链路：
-    me followees / favorites / contents
+    OAuth 授权用户数据（followees / favorites / contents）
       ↓ ProfileEvidence（真实痕迹，is_mock=False）
       ↓ ProfileExtractor（LLM）
     ContributionProfile → MindPortrait
 
-任何环节失败 → MockProfileService，「先聊两句」永远可用。
-OAuth 是增强路径，不是 MindMine 能否工作的前提。
+重要：本模块不再读取 Access Secret 所属账号（开发者本人）的数据。
+只有拿到 OAuth access_token（X-OAuth-Token）后，才读取「当前授权用户」
+的公开数据；任何环节失败都回退到「先聊两句」，绝不回退到开发者账号。
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ from models.profile import (
 )
 from pydantic import BaseModel, Field
 from services.llm_service import LLMUnavailable, llm
-from services.zhihu_service import ZhihuUnavailable, zhihu
+from services.zhihu_oauth import ZhihuOAuthUser
 
 logger = logging.getLogger("mindmine.profile")
 
@@ -104,22 +105,43 @@ def _evidence_from(
 
 
 async def fetch_traces() -> tuple[list[ProfileEvidence], bool]:
-    """拉取真实足迹。返回 (evidence, used_real)。"""
-    if not zhihu.available:
-        return [], False
-    try:
-        followees = await zhihu.me_followees(12)
-        favorites = await zhihu.me_favorite_titles(12)
-        contents = await zhihu.me_content_titles(8)
-    except ZhihuUnavailable as exc:
-        logger.warning("traces fallback: %s", exc)
-        return [], False
+    """【已废弃】不再读取 Access Secret 所属账号（开发者本人）的数据。
 
-    ev = _evidence_from(followees, favorites, contents)
-    if not ev:
-        return [], False
-    logger.info("profile stage=traces provider=real fallback=False groups=%d", len(ev))
-    return ev, True
+    保留该函数名仅为兼容旧导入；现在一律返回空 + False，
+    表示「没有当前用户的真实足迹」。OAuth 路径改走 build_portrait_from_user()。
+    """
+    logger.warning("profile fetch_traces() called — developer identity read is removed")
+    return [], False
+
+
+def evidence_from_user(user: ZhihuOAuthUser) -> list[ProfileEvidence]:
+    """从「当前 OAuth 授权用户」的原始数据构建真实痕迹。
+
+    只使用本次授权拿到的数据，绝不混入开发者账号数据。
+    """
+    return _evidence_from(user.followees, user.favorites, user.contents)
+
+
+async def build_portrait_from_user(
+    user: ZhihuOAuthUser,
+) -> tuple[ContributionProfile, MindPortrait, bool] | None:
+    """从 OAuth 用户数据生成画像。失败返回 None，调用方 fallback 到「先聊两句」。"""
+    evidence = evidence_from_user(user)
+    if not evidence:
+        logger.warning("oauth portrait no_evidence")
+        return None
+
+    built = await build_portrait(evidence)
+    if built is not None:
+        return built
+
+    # LLM 失败：仍用真实 OAuth 足迹兜底，绝不退回 demo persona
+    salvaged = portrait_from_evidence(evidence)
+    if salvaged is None:
+        return None
+    profile, portrait = salvaged
+    logger.info("oauth portrait fallback=evidence")
+    return profile, portrait, False
 
 
 async def build_portrait(

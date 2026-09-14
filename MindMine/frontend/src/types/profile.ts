@@ -20,7 +20,12 @@ export interface ProfileEvidence {
  * possible_knowledge 与 contribution_angles 权重最高。
  */
 export interface ContributionProfile {
-  source: 'mock_zhihu' | 'mock_chat' | 'oauth'
+  source:
+    | 'mock_zhihu'
+    | 'mock_chat'
+    | 'oauth'
+    | 'chat_llm'
+    | 'chat_mock'
   journey: string
   lived_experiences: string[]
   recurring_interests: string[]

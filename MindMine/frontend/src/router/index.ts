@@ -5,7 +5,7 @@ import { createRouter, createWebHistory } from 'vue-router'
  *
  *   /            Opening      这次，换你。
  *   /know-me     Know Me      先让我认识你。
- *   /tracing     Trace        正在从散落的痕迹里认出一个人
+ *   /oauth/return OAuth 返回   知乎授权完成后的落地页
  *   /chat        Chat         先聊两句（无知乎登录的 fallback）
  *   /portrait    Portrait     我好像看到这样一个你。
  *   /match       Match        也许，这题该你来答。
@@ -26,9 +26,9 @@ const router = createRouter({
       component: () => import('@/pages/KnowMePage.vue'),
     },
     {
-      path: '/tracing',
-      name: 'tracing',
-      component: () => import('@/pages/TracingPage.vue'),
+      path: '/oauth/return',
+      name: 'oauth-return',
+      component: () => import('@/pages/OAuthReturnPage.vue'),
     },
     {
       path: '/chat',

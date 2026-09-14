@@ -5,6 +5,11 @@
 只有「认识我」「我眼中的你」「哪里不像」「该你答的问题」。
 
 统一响应信封与 sessions.py 一致。
+
+身份边界（关键）：
+    「用知乎认识我」的真实入口是 /oauth/zhihu/authorize（见 routers/oauth.py）。
+    本文件不再包含任何读取 Access Secret 所属账号（开发者本人）数据的端点。
+    「先聊两句」走 /onboarding/chat/* 与 /onboarding/from-chat。
 """
 
 from __future__ import annotations
@@ -13,7 +18,7 @@ from fastapi import APIRouter, HTTPException
 
 from config import settings
 from models.profile import ChatAnswerRequest, CorrectionRequest
-from services import profile_extractor, question_matcher
+from services import question_matcher
 from services.profile_service import profile_service
 
 router = APIRouter()
@@ -47,55 +52,25 @@ def _not_found(onboarding_id: str) -> HTTPException:
 
 
 # --------------------------------------------------------------------------
-# 路径 A —— 用知乎认识我
+# 路径 A —— 用知乎认识我（真实 OAuth，入口在 /oauth/zhihu/authorize）
 # --------------------------------------------------------------------------
 
 
-@router.get("/onboarding/traces")
-async def traces() -> dict:
-    """逐步浮现的痕迹。
+@router.get("/onboarding/{onboarding_id}")
+async def get_onboarding(onboarding_id: str) -> dict:
+    """恢复一次已完成的 Onboarding（OAuth 回调后前端用它取回画像）。
 
-    真实优先：读当前账号的 followees / favorites / contents。
-    拿不到就退回演示数据，前端据 is_mock 决定是否标注「演示数据」。
+    这里只读取本次会话自己的 onboarding 记录，不涉及任何知乎账号数据。
     """
-    real, used_real = await profile_extractor.fetch_traces()
-    items = real if used_real else profile_service.traces()
+    state = profile_service.get(onboarding_id)
+    if state is None:
+        raise _not_found(onboarding_id)
     return ok(
         {
-            "items": [t.model_dump() for t in items],
-            "source": "oauth" if used_real else "mock",
+            **state.model_dump(mode="json"),
+            "source": state.profile.source,
         }
     )
-
-
-@router.post("/onboarding/from-zhihu")
-async def from_zhihu() -> dict:
-    """用知乎认识我。
-
-    真实链路：足迹 → ProfileExtractor → ContributionProfile → MindPortrait。
-    任一环节失败退回 MockProfileService —— OAuth 是增强路径，
-    不是 MindMine 能否工作的前提。
-    """
-    evidence, used_real = await profile_extractor.fetch_traces()
-    if used_real:
-        built = await profile_extractor.build_portrait(evidence)
-        if built is not None:
-            profile, portrait, _ = built
-            state = profile_service.adopt(profile, portrait)
-            return ok({**state.model_dump(mode="json"), "source": "oauth", **_dev(True)})
-
-        # 足迹是真的、只是 LLM 失败：仍然用真实足迹兜底，
-        # 绝不退回与这个人无关的 demo persona。
-        salvaged = profile_extractor.portrait_from_evidence(evidence)
-        if salvaged is not None:
-            profile, portrait = salvaged
-            state = profile_service.adopt(profile, portrait)
-            return ok(
-                {**state.model_dump(mode="json"), "source": "oauth", **_dev(False)}
-            )
-
-    state = profile_service.from_zhihu()
-    return ok({**state.model_dump(mode="json"), "source": "mock", **_dev(False)})
 
 
 # --------------------------------------------------------------------------

@@ -5,3 +5,5 @@ pydantic>=2.9.0
 pydantic-settings>=2.5.0
 # services/llm_service.py 使用 AsyncOpenAI 兼容协议访问 DeepSeek
 openai>=1.50.0
+# services/zhihu_oauth.py 直连知乎 OAuth / 用户数据 HTTP API
+httpx>=0.27.0

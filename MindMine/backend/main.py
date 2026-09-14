@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from config import settings
+from routers.oauth import router as oauth_router
 from routers.onboarding import router as onboarding_router
 from routers.sessions import router as sessions_router
 
@@ -40,6 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(oauth_router, prefix="/api/v1")
 app.include_router(onboarding_router, prefix="/api/v1")
 app.include_router(sessions_router, prefix="/api/v1")
 
