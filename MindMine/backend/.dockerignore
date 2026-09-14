@@ -1,0 +1,30 @@
+# 虚拟环境：macOS 编译的二进制在 Linux 容器里不可用，
+# 且会让镜像凭空多出 65MB。依赖由 requirements.txt 在镜像内重新安装。
+.venv/
+venv/
+
+# 密钥：绝不能烤进镜像层。线上一律用平台环境变量注入。
+.env
+.env.*
+!.env.example
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 本地验证脚本，不属于运行时
+_smoke_*.py
+_verify_*.py
+
+# 平台声明文件本身不需要进镜像
+render.yaml
+Dockerfile
+.dockerignore
+
+# 其他
+.DS_Store
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
