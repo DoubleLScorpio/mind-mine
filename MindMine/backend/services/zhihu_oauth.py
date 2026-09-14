@@ -103,9 +103,10 @@ class ZhihuOAuth:
             raise ZhihuOAuthError("知乎拒绝授权码或 OAuth 配置不正确")
 
         data = _as_json(resp, "token_exchange")
-        token = (data.get("access_token") or "").strip()
+        token = _extract_access_token(data)
         if not token:
-            _log_safe("token_exchange", "no_access_token")
+            # 只记录结构概要（键名 + 业务 code），绝不记录 token / secret。
+            _log_safe("token_exchange", f"no_access_token {_describe_response(data)}")
             raise ZhihuOAuthError("知乎未返回 access_token")
         logger.info("oauth token exchange ok")
         return token
@@ -213,6 +214,39 @@ def _items(data: dict[str, Any]) -> list[Any]:
     if isinstance(raw, list):
         return raw
     return (raw or {}).get("Items") or []
+
+
+def _extract_access_token(data: dict[str, Any]) -> str:
+    """从 token 响应中稳健地取出 access_token。
+
+    知乎真实响应可能把 access_token 放在顶层、Data 内、或大小写变体。
+    这里做多层查找，绝不返回其它字段（如 app_key）误当 token。
+    """
+    # 候选键名（按优先级）
+    for key in ("access_token", "accessToken", "AccessToken"):
+        v = data.get(key)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+
+    # 常见嵌套形态：data["Data"]["access_token"] 或 data["data"][...]
+    for nest_key in ("Data", "data"):
+        inner = data.get(nest_key)
+        if isinstance(inner, dict):
+            for key in ("access_token", "accessToken", "AccessToken"):
+                v = inner.get(key)
+                if isinstance(v, str) and v.strip():
+                    return v.strip()
+
+    return ""
+
+
+def _describe_response(data: dict[str, Any]) -> str:
+    """生成安全的结构概要：只输出顶层键名与业务 code，绝不输出 token 值。"""
+    top_keys = list(data.keys())
+    code = data.get("Code", data.get("code", data.get("Message", "")))
+    # 若存在 access_token，只标记 has_token=True，不打印值
+    has_token = bool(_extract_access_token(data))
+    return f"keys={top_keys} code={code!r} has_token={has_token}"
 
 
 def _as_json(resp, stage: str) -> dict[str, Any]:
