@@ -241,12 +241,44 @@ def _extract_access_token(data: dict[str, Any]) -> str:
 
 
 def _describe_response(data: dict[str, Any]) -> str:
-    """生成安全的结构概要：只输出顶层键名与业务 code，绝不输出 token 值。"""
+    """生成安全的结构概要：只输出顶层键名、业务 code 与 data 的安全摘要。
+
+    绝不输出 access_token / app_key / secret 等敏感值。
+    """
     top_keys = list(data.keys())
-    code = data.get("Code", data.get("code", data.get("Message", "")))
-    # 若存在 access_token，只标记 has_token=True，不打印值
+    code = data.get("code", data.get("Code", data.get("Message", "")))
     has_token = bool(_extract_access_token(data))
-    return f"keys={top_keys} code={code!r} has_token={has_token}"
+    return f"keys={top_keys} code={code!r} has_token={has_token} data={_describe_data(data.get('data', data.get('Data')))!r}"
+
+
+def _describe_data(node: Any, depth: int = 0) -> Any:
+    """递归安全摘要：字符串值只保留短文本或长度，疑似 token/secret 一律脱敏。"""
+    if depth > 2:
+        return "[...]"
+    if isinstance(node, str):
+        s = node.strip()
+        if not s:
+            return ""
+        # 疑似 token / secret：长 hex 或 base64 串，只记长度
+        if len(s) > 48 and _looks_like_secret(s):
+            return f"[len={len(s)}]"
+        return s if len(s) <= 60 else s[:60] + "…"
+    if isinstance(node, dict):
+        return {k: _describe_data(v, depth + 1) for k, v in list(node.items())[:12]}
+    if isinstance(node, list):
+        return [_describe_data(v, depth + 1) for v in node[:6]]
+    return node
+
+
+def _looks_like_secret(s: str) -> bool:
+    """判断一个长字符串是否像 token/secret（用于脱敏，避免误记）。"""
+    import re
+
+    if re.fullmatch(r"[0-9a-fA-F]{24,}", s):
+        return True
+    if re.fullmatch(r"[A-Za-z0-9_\-\.]{24,}", s):
+        return True
+    return False
 
 
 def _as_json(resp, stage: str) -> dict[str, Any]:
