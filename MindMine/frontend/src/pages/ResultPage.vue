@@ -93,10 +93,19 @@ async function copyAnswer() {
   setTimeout(() => (copied.value = false), 2000)
 }
 
-function publish() {
-  // Phase 1：不伪造发布能力
+async function publish() {
+  // 先把成文答案放进剪贴板，用户到知乎后直接粘贴。
+  await copyAnswer()
+
+  const q = store.question
+  // 只有真实知乎问题才有链接可跳；mock 演示题没有对应链接。
+  if (q?.source === 'api' && q.url) {
+    window.open(q.url, '_blank', 'noopener,noreferrer')
+    return
+  }
+
   publishNotice.value = true
-  setTimeout(() => (publishNotice.value = false), 5000)
+  setTimeout(() => (publishNotice.value = false), 6000)
 }
 
 function restart() {
@@ -152,7 +161,7 @@ function restart() {
     </div>
 
     <p v-if="publishNotice" class="notice">
-      真实知乎问题链接将在 Zhihu API 接入阶段启用。
+      这是一道演示题，没有对应的知乎链接。答案已复制，去知乎搜索这道题粘贴即可。
     </p>
 
     <!-- 很轻的一句收尾。不解释、不总结、不夸奖 -->
